@@ -1,7 +1,7 @@
 mod entries;
 mod meds;
 
-use actix_web::{middleware::Logger, App, HttpServer};
+use actix_web::{middleware, App, HttpServer};
 use log::LevelFilter;
 use sqlx::SqlitePool;
 use std::io::Write;
@@ -30,10 +30,10 @@ async fn main() -> std::io::Result<()> {
 
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(middleware::NormalizePath::default())
             .data(pool.clone())
             .configure(meds::config)
             .configure(entries::config)
-            .wrap(Logger::default())
     });
 
     // finally bind the server to an address and run

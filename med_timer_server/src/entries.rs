@@ -1,4 +1,8 @@
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{
+    get,
+    web::{self, Path},
+    HttpResponse, Responder,
+};
 use med_timer_shared::entry::Entry;
 use sqlx::SqlitePool;
 
@@ -29,25 +33,25 @@ async fn generate_response(
     }
 }
 
-#[get("/entry")]
+#[get("/entry/")]
 async fn get_all_entries(db_pool: web::Data<SqlitePool>) -> impl Responder {
-    generate_response(None, None, db_pool.as_ref()).await
+    generate_response(None, None, &db_pool).await
 }
 
-#[get("/entry/{entry_uuid}")]
+#[get("/entry/{entry_uuid}/")]
 async fn get_entries_from_entry(
-    web::Path(entry_uuid): web::Path<String>,
+    Path(entry_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
 ) -> impl Responder {
-    generate_response(Some(entry_uuid), None, db_pool.as_ref()).await
+    generate_response(Some(entry_uuid), None, &db_pool).await
 }
 
-#[get("/entry/by-medication/{medication_uuid}")]
+#[get("/entry/by-medication/{medication_uuid}/")]
 async fn get_entries_from_medication(
-    web::Path(medication_uuid): web::Path<String>,
+    Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
 ) -> impl Responder {
-    generate_response(None, Some(medication_uuid), db_pool.as_ref()).await
+    generate_response(None, Some(medication_uuid), &db_pool).await
 }
 
 /// Adds all entry services to config

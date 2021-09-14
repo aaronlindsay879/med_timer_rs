@@ -1,4 +1,8 @@
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{
+    get,
+    web::{self, Path},
+    HttpResponse, Responder,
+};
 use med_timer_shared::med::Med;
 use sqlx::SqlitePool;
 
@@ -23,17 +27,17 @@ async fn generate_response(uuid: Option<String>, db_pool: &SqlitePool) -> HttpRe
     }
 }
 
-#[get("/med")]
+#[get("/med/")]
 async fn get_all_meds(db_pool: web::Data<SqlitePool>) -> impl Responder {
-    generate_response(None, db_pool.as_ref()).await
+    generate_response(None, &db_pool).await
 }
 
-#[get("/med/{medication_uuid}")]
+#[get("/med/{medication_uuid}/")]
 async fn get_med(
-    web::Path(medication_uuid): web::Path<String>,
+    Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
 ) -> impl Responder {
-    generate_response(Some(medication_uuid), db_pool.as_ref()).await
+    generate_response(Some(medication_uuid), &db_pool).await
 }
 
 /// Adds all med services to config
