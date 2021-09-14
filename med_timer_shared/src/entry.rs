@@ -12,6 +12,7 @@ pub struct Entry {
 impl Entry {
     /// Constructs a new entry with the given amount, at the given time (converting into UTC), for the given medicine id.
     pub fn new(amount: usize, time: DateTime<impl TimeZone>, medicine_id: Uuid) -> Self {
+        log::info!("New entry logged: {} for `{}`", amount, medicine_id);
         let time = time.with_timezone(&Utc);
 
         Self {
@@ -23,6 +24,12 @@ impl Entry {
 
     /// Constructs a new entry with teh given amount for the given medicine id at the current UTC time.
     pub fn new_now(amount: usize, medicine_id: Uuid) -> Self {
+        log::info!(
+            "New entry logged: {} for medication `{}`",
+            amount,
+            medicine_id
+        );
+
         Self {
             amount,
             time: Utc::now(),

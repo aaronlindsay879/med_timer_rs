@@ -7,3 +7,5 @@ edition = "2018"
 
 [dependencies]
 med_timer_shared = { path = "../med_timer_shared" }
+log = "0.4"
+env_logger = "0.9"

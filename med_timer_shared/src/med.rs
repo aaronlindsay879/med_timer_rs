@@ -10,6 +10,8 @@ pub struct Med {
 impl Med {
     /// Constructs a new medication with the given name.
     pub fn new(name: String) -> Self {
+        log::info!("New medication created: `{}`", name);
+
         Self {
             name,
             id: Uuid::new_v4(),
