@@ -27,12 +27,12 @@ async fn generate_response(uuid: Option<String>, db_pool: &SqlitePool) -> HttpRe
     }
 }
 
-#[get("/med/")]
+#[get("/")]
 async fn get_all_meds(db_pool: web::Data<SqlitePool>) -> impl Responder {
     generate_response(None, &db_pool).await
 }
 
-#[get("/med/{medication_uuid}/")]
+#[get("/{medication_uuid}/")]
 async fn get_med(
     Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
@@ -42,5 +42,5 @@ async fn get_med(
 
 /// Adds all med services to config
 pub(crate) fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_med).service(get_all_meds);
+    cfg.service(web::scope("med").service(get_med).service(get_all_meds));
 }

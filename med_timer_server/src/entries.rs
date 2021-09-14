@@ -33,12 +33,12 @@ async fn generate_response(
     }
 }
 
-#[get("/entry/")]
+#[get("/")]
 async fn get_all_entries(db_pool: web::Data<SqlitePool>) -> impl Responder {
     generate_response(None, None, &db_pool).await
 }
 
-#[get("/entry/{entry_uuid}/")]
+#[get("/{entry_uuid}/")]
 async fn get_entries_from_entry(
     Path(entry_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
@@ -46,7 +46,7 @@ async fn get_entries_from_entry(
     generate_response(Some(entry_uuid), None, &db_pool).await
 }
 
-#[get("/entry/by-medication/{medication_uuid}/")]
+#[get("/by-medication/{medication_uuid}/")]
 async fn get_entries_from_medication(
     Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
@@ -56,7 +56,10 @@ async fn get_entries_from_medication(
 
 /// Adds all entry services to config
 pub(crate) fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_all_entries)
-        .service(get_entries_from_entry)
-        .service(get_entries_from_medication);
+    cfg.service(
+        web::scope("entry")
+            .service(get_all_entries)
+            .service(get_entries_from_entry)
+            .service(get_entries_from_medication),
+    );
 }
