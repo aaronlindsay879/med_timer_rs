@@ -6,6 +6,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4"
-uuid = { version = "0.8", features = [ "v4" ] }
 log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = [ "serde" ] }
+uuid = { version = "0.8", features = [ "v4", "serde" ] }
+
+[dependencies.sqlx]
+version = "0.5"
+default-features = false
+features = ["macros", "sqlite", "runtime-tokio-rustls"]
