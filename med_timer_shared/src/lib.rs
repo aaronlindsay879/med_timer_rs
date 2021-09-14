@@ -1,3 +1,2 @@
-pub fn hello_world() -> &'static str {
-    "hello world"
-}
+pub mod entry;
+pub mod med;
