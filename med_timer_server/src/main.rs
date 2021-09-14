@@ -1,15 +1,13 @@
-#![feature(async_closure)]
+mod entries;
+mod meds;
 
-pub(crate) mod db;
-
-use db::*;
+use actix_web::{middleware::Logger, App, HttpServer};
 use log::LevelFilter;
 use sqlx::SqlitePool;
-use std::{convert::Infallible, error::Error, io::Write};
-use warp::{path, reply::Json, Filter};
+use std::io::Write;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     // create logger with format `TIMESTAMP [LEVEL] LOG`
     let mut builder = env_logger::builder();
     builder.format(|buf, record| {
@@ -25,48 +23,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     builder.filter_module("sqlx::query", LevelFilter::Warn);
     builder.init();
 
-    // then create database pool
-    let pool = SqlitePool::connect("sqlite:///home/user/prog/rust/med_timer/testing.db").await?;
+    // then create database pool, mapping to io error if needed
+    let pool = SqlitePool::connect("sqlite:///home/user/prog/rust/med_timer/testing.db")
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-    // create route for optionally matching a single string
-    let optional_string = warp::path::param()
-        .map(Some)
-        .or_else(|_| async { Ok::<(Option<String>,), Infallible>((None,)) });
+    let server = HttpServer::new(move || {
+        App::new()
+            .data(pool.clone())
+            .configure(meds::config)
+            .configure(entries::config)
+            .wrap(Logger::default())
+    });
 
-    // create route for getting medications - if a string is passed, it's used to search for medication UUID
-    let get_med = path!("med" / ..)
-        .and(with_db(pool.clone()))
-        .and(optional_string)
-        .and_then(async move |pool, uuid| -> Result<Json, Infallible> {
-            match find_med(uuid, &pool).await {
-                Ok(meds) => Ok(warp::reply::json(&meds)),
-                Err(_) => Ok(warp::reply::json(&[0; 0])),
-            }
-        });
-
-    // create route for entries - first string is entry UUID, second is medication UUID
-    let get_entry = path!("entry" / ..)
-        .and(with_db(pool.clone()))
-        .and(optional_string)
-        .and(optional_string)
-        .and_then(
-            async move |pool, entry_uuid, medication_uuid| -> Result<Json, Infallible> {
-                match find_entries(entry_uuid, medication_uuid, &pool).await {
-                    Ok(entries) => Ok(warp::reply::json(&entries)),
-                    Err(_) => Ok(warp::reply::json(&[0; 0])),
-                }
-            },
-        );
-
-    let routes = warp::get().and(get_med.or(get_entry));
-
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
-    Ok(())
-}
-
-// simple filter to make it possible to share db pool
-fn with_db(
-    pool: SqlitePool,
-) -> impl Filter<Extract = (SqlitePool,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || pool.clone())
+    // finally bind the server to an address and run
+    server.bind("127.0.0.1:8080")?.run().await
 }

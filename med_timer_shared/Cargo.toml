@@ -14,4 +14,4 @@ uuid = { version = "0.8", features = [ "v4", "serde" ] }
 [dependencies.sqlx]
 version = "0.5"
 default-features = false
-features = ["macros", "sqlite", "runtime-tokio-rustls"]
+features = ["macros", "sqlite", "runtime-async-std-rustls"]

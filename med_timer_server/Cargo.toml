@@ -9,13 +9,13 @@ edition = "2018"
 med_timer_shared = { path = "../med_timer_shared" }
 log = "0.4"
 env_logger = "0.9"
-warp = "0.3"
-tokio = { version = "1.1", features = ["macros"] }
+actix-web = "3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "0.8", features = [ "v4", "serde" ] }
+anyhow = "1.0"
 
 [dependencies.sqlx]
 version = "0.5"
 default-features = false
-features = ["macros", "sqlite", "runtime-tokio-rustls"]
+features = ["macros", "sqlite", "runtime-async-std-rustls"]
