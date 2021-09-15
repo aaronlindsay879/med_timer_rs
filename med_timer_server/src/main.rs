@@ -3,6 +3,7 @@ use routes::{entries, meds};
 
 use actix_web::{middleware, App, HttpServer};
 use log::LevelFilter;
+use paperclip::actix::OpenApiExt;
 use sqlx::SqlitePool;
 use std::io::Write;
 
@@ -33,8 +34,11 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::NormalizePath::default())
             .wrap(middleware::Logger::default())
             .data(pool.clone())
+            .wrap_api()
+            .with_json_spec_at("/spec/")
             .configure(meds::config)
             .configure(entries::config)
+            .build()
     });
 
     // finally bind the server to an address and run

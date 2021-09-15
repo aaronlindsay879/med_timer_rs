@@ -1,9 +1,11 @@
-use actix_web::{
-    get,
-    web::{self, Path},
-    HttpResponse, Responder,
-};
+#![allow(clippy::async_yields_async)]
+
+use actix_web::HttpResponse;
 use med_timer_shared::med::Med;
+use paperclip::actix::{
+    api_v2_operation, get,
+    web::{self, Path},
+};
 use sqlx::SqlitePool;
 
 use super::Query;
@@ -19,7 +21,9 @@ async fn generate_response(query: Query<'_, Med>, db_pool: &SqlitePool) -> HttpR
 }
 
 #[get("/")]
-async fn get_all_meds(db_pool: web::Data<SqlitePool>) -> impl Responder {
+#[api_v2_operation]
+
+async fn get_all_meds(db_pool: web::Data<SqlitePool>) -> HttpResponse {
     log::trace!("searching database for all medications");
     let query = sqlx::query_as("SELECT * FROM medication");
 
@@ -27,10 +31,12 @@ async fn get_all_meds(db_pool: web::Data<SqlitePool>) -> impl Responder {
 }
 
 #[get("/by-uuid/{medication_uuid}/")]
+#[api_v2_operation]
+
 async fn get_med_by_uuid(
     Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
-) -> impl Responder {
+) -> HttpResponse {
     log::trace!(
         "searching database for medication with uuid: `{}`",
         medication_uuid
@@ -41,10 +47,8 @@ async fn get_med_by_uuid(
 }
 
 #[get("/by-name/{name}/")]
-async fn get_med_by_name(
-    Path(name): Path<String>,
-    db_pool: web::Data<SqlitePool>,
-) -> impl Responder {
+#[api_v2_operation]
+async fn get_med_by_name(Path(name): Path<String>, db_pool: web::Data<SqlitePool>) -> HttpResponse {
     log::trace!("searching database for medication with name: `{}`", name);
     let query = sqlx::query_as("SELECT * FROM medication WHERE name LIKE ?").bind(name);
 

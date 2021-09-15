@@ -18,3 +18,7 @@ uuid = { version = "0.8", features = [ "v4", "serde" ] }
 version = "0.5"
 default-features = false
 features = ["macros", "sqlite", "runtime-async-std-rustls"]
+
+[dependencies.paperclip]
+git = "https://github.com/wafflespeanut/paperclip" 
+features = ["actix3-nightly", "v2"]
