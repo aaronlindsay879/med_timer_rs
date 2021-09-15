@@ -1,5 +1,5 @@
-mod entries;
-mod meds;
+mod routes;
+use routes::{entries, meds};
 
 use actix_web::{middleware, App, HttpServer};
 use log::LevelFilter;
