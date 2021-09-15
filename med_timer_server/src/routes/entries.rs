@@ -1,7 +1,6 @@
 #![allow(clippy::async_yields_async)]
 
-use super::Query;
-use futures::StreamExt;
+use crate::generate_functions;
 use med_timer_shared::entry::Entry;
 use paperclip::actix::{
     api_v2_operation, get,
@@ -11,21 +10,7 @@ use paperclip::actix::{
 use serde::Serialize;
 use sqlx::{FromRow, SqlitePool};
 
-/// Generates a vector of entries from the given query and database pool.
-/// If results are found, simply return those results.
-/// Otherwise serve empty json.
-async fn generate_response(
-    query: Query<'_, Entry>,
-    limit: usize,
-    db_pool: &SqlitePool,
-) -> Vec<Entry> {
-    let vector = query.fetch(db_pool).take(limit).collect::<Vec<_>>().await;
-
-    vector
-        .into_iter()
-        .collect::<Result<Vec<Entry>, _>>()
-        .unwrap_or_default()
-}
+generate_functions!(entry_response<Entry>, combined_response<CombinedEntryMed>);
 
 /// Fetches the most recent 100 entries for all medications.
 #[get("/")]
@@ -33,7 +18,7 @@ async fn generate_response(
 async fn get_all_entries(db_pool: web::Data<SqlitePool>) -> Json<Vec<Entry>> {
     let query = sqlx::query_as::<_, Entry>("SELECT * FROM entry ORDER BY datetime(time) DESC");
 
-    Json(generate_response(query, 100, &db_pool).await)
+    Json(entry_response(query, 100, &db_pool).await)
 }
 
 /// Fetches the most recent entry for a given entry UUID.
@@ -47,7 +32,7 @@ async fn get_entries_from_entry(
         sqlx::query_as("SELECT * FROM entry WHERE uuid LIKE ? ORDER BY datetime(time) DESC")
             .bind(entry_uuid);
 
-    Json(generate_response(query, 1, &db_pool).await.first().cloned())
+    Json(entry_response(query, 1, &db_pool).await.first().cloned())
 }
 
 /// Fetches the most recent 100 entries for a given medication UUID.
@@ -62,7 +47,7 @@ async fn get_entries_from_medication_uuid(
     )
     .bind(medication_uuid);
 
-    Json(generate_response(query, 100, &db_pool).await)
+    Json(entry_response(query, 100, &db_pool).await)
 }
 
 /// Represents combined information of entry + medication, removing need for second lookup in some situations.
@@ -97,19 +82,7 @@ async fn get_entries_from_medication_name(
     )
     .bind(medication_name);
 
-    // TODO: Replace this with `generate_response` call once generic
-    let vector = query
-        .fetch(db_pool.as_ref())
-        .take(100)
-        .collect::<Vec<_>>()
-        .await;
-
-    Json(
-        vector
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap_or_default(),
-    )
+    Json(combined_response(query, 100, &db_pool).await)
 }
 
 /// Adds all entry services to config
