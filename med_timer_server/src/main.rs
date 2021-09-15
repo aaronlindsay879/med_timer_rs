@@ -31,6 +31,7 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::NormalizePath::default())
+            .wrap(middleware::Logger::default())
             .data(pool.clone())
             .configure(meds::config)
             .configure(entries::config)
