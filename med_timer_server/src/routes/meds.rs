@@ -7,9 +7,9 @@ use paperclip::actix::{
 };
 use sqlx::SqlitePool;
 
-use crate::generate_functions;
+use crate::generate_response_functions;
 
-generate_functions!(med_response<Med>);
+generate_response_functions!(med_response<Med>);
 
 /// Fetches up to 100 medications.
 #[get("/")]

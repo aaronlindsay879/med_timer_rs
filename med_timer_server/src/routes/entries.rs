@@ -1,6 +1,6 @@
 #![allow(clippy::async_yields_async)]
 
-use crate::generate_functions;
+use crate::generate_response_functions;
 use med_timer_shared::entry::Entry;
 use paperclip::actix::{
     api_v2_operation, get,
@@ -10,7 +10,7 @@ use paperclip::actix::{
 use serde::Serialize;
 use sqlx::{FromRow, SqlitePool};
 
-generate_functions!(entry_response<Entry>, combined_response<CombinedEntryMed>);
+generate_response_functions!(entry_response<Entry>, combined_response<CombinedEntryMed>);
 
 /// Fetches the most recent 100 entries for all medications.
 #[get("/")]

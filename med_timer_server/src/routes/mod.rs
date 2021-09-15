@@ -6,8 +6,11 @@ pub(crate) mod meds;
 /// Simple alias to make it simpler to pass partial queries around.
 type Query<'a, T> = QueryAs<'a, Sqlite, T, sqlx::sqlite::SqliteArguments<'a>>;
 
+/// Generates functions which fetch a response from the database, returning a specific type.
+///
+/// This _should_ be done with generics instead, but issues with resolving lifetimes made that infeasible.
 #[macro_export]
-macro_rules! generate_functions {
+macro_rules! generate_response_functions {
     ($($name:ident<$type:ty>),+) => {
         use futures::StreamExt;
         $(
