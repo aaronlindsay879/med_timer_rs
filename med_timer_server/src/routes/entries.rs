@@ -1,54 +1,115 @@
 #![allow(clippy::async_yields_async)]
 
-use actix_web::HttpResponse;
+use super::Query;
+use futures::StreamExt;
 use med_timer_shared::entry::Entry;
 use paperclip::actix::{
     api_v2_operation, get,
-    web::{self, Path},
+    web::{self, Json, Path},
+    Apiv2Schema,
 };
-use sqlx::SqlitePool;
+use serde::Serialize;
+use sqlx::{FromRow, SqlitePool};
 
-use super::Query;
-
-/// Generates a json response from the given query and database pool.
+/// Generates a vector of entries from the given query and database pool.
 /// If results are found, simply return those results.
 /// Otherwise serve empty json.
-async fn generate_response(query: Query<'_, Entry>, db_pool: &SqlitePool) -> HttpResponse {
-    match query.fetch_all(db_pool).await {
-        Ok(meds) => HttpResponse::Ok().json(meds),
-        Err(_) => HttpResponse::Ok().json([0; 0]),
-    }
+async fn generate_response(
+    query: Query<'_, Entry>,
+    limit: usize,
+    db_pool: &SqlitePool,
+) -> Vec<Entry> {
+    let vector = query.fetch(db_pool).take(limit).collect::<Vec<_>>().await;
+
+    vector
+        .into_iter()
+        .collect::<Result<Vec<Entry>, _>>()
+        .unwrap_or_default()
 }
 
+/// Fetches the most recent 100 entries for all medications.
 #[get("/")]
 #[api_v2_operation]
-async fn get_all_entries(db_pool: web::Data<SqlitePool>) -> HttpResponse {
-    let query = sqlx::query_as("SELECT * FROM entry");
+async fn get_all_entries(db_pool: web::Data<SqlitePool>) -> Json<Vec<Entry>> {
+    let query = sqlx::query_as::<_, Entry>("SELECT * FROM entry ORDER BY datetime(time) DESC");
 
-    generate_response(query, &db_pool).await
+    Json(generate_response(query, 100, &db_pool).await)
 }
 
+/// Fetches the most recent entry for a given entry UUID.
 #[get("/by-entry-uuid/{entry_uuid}/")]
 #[api_v2_operation]
 async fn get_entries_from_entry(
     Path(entry_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
-) -> HttpResponse {
-    let query = sqlx::query_as("SELECT * FROM entry WHERE uuid LIKE ?").bind(entry_uuid);
+) -> Json<Option<Entry>> {
+    let query =
+        sqlx::query_as("SELECT * FROM entry WHERE uuid LIKE ? ORDER BY datetime(time) DESC")
+            .bind(entry_uuid);
 
-    generate_response(query, &db_pool).await
+    Json(generate_response(query, 1, &db_pool).await.first().cloned())
 }
 
+/// Fetches the most recent 100 entries for a given medication UUID.
 #[get("/by-med-uuid/{medication_uuid}/")]
 #[api_v2_operation]
-async fn get_entries_from_medication(
+async fn get_entries_from_medication_uuid(
     Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
-) -> HttpResponse {
-    let query =
-        sqlx::query_as("SELECT * FROM entry WHERE medication_uuid LIKE ?").bind(medication_uuid);
+) -> Json<Vec<Entry>> {
+    let query = sqlx::query_as(
+        "SELECT * FROM entry WHERE medication_uuid LIKE ? ORDER BY datetime(time) DESC",
+    )
+    .bind(medication_uuid);
 
-    generate_response(query, &db_pool).await
+    Json(generate_response(query, 100, &db_pool).await)
+}
+
+/// Represents combined information of entry + medication, removing need for second lookup in some situations.
+#[derive(Apiv2Schema, FromRow, Serialize)]
+struct CombinedEntryMed {
+    entry_uuid: String,
+    entry_amount: i64,
+    entry_time: String,
+    medication_uuid: String,
+    medication_name: String,
+}
+
+/// Fetches the most recent 100 entries for a given medication name.
+#[get("/by-med-name/{medication_name}/")]
+#[api_v2_operation]
+async fn get_entries_from_medication_name(
+    Path(medication_name): Path<String>,
+    db_pool: web::Data<SqlitePool>,
+) -> Json<Vec<CombinedEntryMed>> {
+    let query = sqlx::query_as(
+        "SELECT
+            entry.uuid AS entry_uuid,
+            amount AS entry_amount,
+            time AS entry_time,
+            medication_uuid,
+            name AS medication_name
+        FROM entry
+        INNER JOIN medication
+            ON medication.uuid = medication_uuid
+            AND medication.name = ?
+        ORDER BY datetime(time) DESC",
+    )
+    .bind(medication_name);
+
+    // TODO: Replace this with `generate_response` call once generic
+    let vector = query
+        .fetch(db_pool.as_ref())
+        .take(100)
+        .collect::<Vec<_>>()
+        .await;
+
+    Json(
+        vector
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap_or_default(),
+    )
 }
 
 /// Adds all entry services to config
@@ -69,6 +130,7 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
         web::scope("entry")
             .service(get_all_entries)
             .service(get_entries_from_entry)
-            .service(get_entries_from_medication),
+            .service(get_entries_from_medication_uuid)
+            .service(get_entries_from_medication_name),
     );
 }
