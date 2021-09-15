@@ -1,6 +1,6 @@
 #![allow(clippy::async_yields_async)]
 
-use crate::generate_response_functions;
+use crate::{generate_response_functions, routes::DefaultQuery};
 use med_timer_shared::entry::Entry;
 use paperclip::actix::{
     api_v2_operation, get,
@@ -15,10 +15,16 @@ generate_response_functions!(entry_response<Entry>, combined_response<CombinedEn
 /// Fetches the most recent 100 entries for all medications.
 #[get("/")]
 #[api_v2_operation]
-async fn get_all_entries(db_pool: web::Data<SqlitePool>) -> Json<Vec<Entry>> {
+async fn get_all_entries(
+    db_pool: web::Data<SqlitePool>,
+    queries: web::Query<DefaultQuery>,
+) -> Json<Vec<Entry>> {
+    log::trace!("searching database for all entries");
+
+    let count = queries.count_or_default();
     let query = sqlx::query_as::<_, Entry>("SELECT * FROM entry ORDER BY datetime(time) DESC");
 
-    Json(entry_response(query, 100, &db_pool).await)
+    Json(entry_response(query, count, &db_pool).await)
 }
 
 /// Fetches the most recent entry for a given entry UUID.
@@ -28,6 +34,8 @@ async fn get_entries_from_entry(
     Path(entry_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
 ) -> Json<Option<Entry>> {
+    log::trace!("searching database for entry with uuid: `{}`", entry_uuid);
+
     let query =
         sqlx::query_as("SELECT * FROM entry WHERE uuid LIKE ? ORDER BY datetime(time) DESC")
             .bind(entry_uuid);
@@ -41,13 +49,20 @@ async fn get_entries_from_entry(
 async fn get_entries_from_medication_uuid(
     Path(medication_uuid): Path<String>,
     db_pool: web::Data<SqlitePool>,
+    queries: web::Query<DefaultQuery>,
 ) -> Json<Vec<Entry>> {
+    log::trace!(
+        "searching database for entry with medication uuid: `{}`",
+        medication_uuid
+    );
+
+    let count = queries.count_or_default();
     let query = sqlx::query_as(
         "SELECT * FROM entry WHERE medication_uuid LIKE ? ORDER BY datetime(time) DESC",
     )
     .bind(medication_uuid);
 
-    Json(entry_response(query, 100, &db_pool).await)
+    Json(entry_response(query, count, &db_pool).await)
 }
 
 /// Represents combined information of entry + medication, removing need for second lookup in some situations.
@@ -66,7 +81,14 @@ struct CombinedEntryMed {
 async fn get_entries_from_medication_name(
     Path(medication_name): Path<String>,
     db_pool: web::Data<SqlitePool>,
+    queries: web::Query<DefaultQuery>,
 ) -> Json<Vec<CombinedEntryMed>> {
+    log::trace!(
+        "searching database for entry with medication name: `{}`",
+        medication_name
+    );
+
+    let count = queries.count_or_default();
     let query = sqlx::query_as(
         "SELECT
             entry.uuid AS entry_uuid,
@@ -82,7 +104,7 @@ async fn get_entries_from_medication_name(
     )
     .bind(medication_name);
 
-    Json(combined_response(query, 100, &db_pool).await)
+    Json(combined_response(query, count, &db_pool).await)
 }
 
 /// Adds all entry services to config

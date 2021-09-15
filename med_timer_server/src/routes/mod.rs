@@ -1,7 +1,24 @@
+use paperclip::actix::Apiv2Schema;
+use serde::Deserialize;
 use sqlx::{query::QueryAs, Sqlite};
 
 pub(crate) mod entries;
 pub(crate) mod meds;
+
+#[derive(Apiv2Schema, Deserialize)]
+struct DefaultQuery {
+    count: Option<usize>,
+}
+
+impl DefaultQuery {
+    pub fn count_or_default(&self) -> usize {
+        self.count_or(100)
+    }
+
+    pub fn count_or(&self, default: usize) -> usize {
+        self.count.unwrap_or(default)
+    }
+}
 
 /// Simple alias to make it simpler to pass partial queries around.
 type Query<'a, T> = QueryAs<'a, Sqlite, T, sqlx::sqlite::SqliteArguments<'a>>;
