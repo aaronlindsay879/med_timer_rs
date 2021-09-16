@@ -34,15 +34,10 @@ macro_rules! generate_response_functions {
             /// Generates a vector of results from the given query and database pool.
             /// If results are found, simply return those results.
             /// Otherwise serve empty json.
-            async fn $name(query: crate::routes::Query<'_, $type>, limit: usize, db_pool: &SqlitePool) -> Vec<$type> {
+            async fn $name(query: crate::routes::Query<'_, $type>, limit: usize, db_pool: &sqlx::SqlitePool) -> Vec<$type> {
                 query
                     .fetch(db_pool)
-                    .filter_map(|entry| async {
-                        match entry {
-                            Ok(entry) => Some(entry),
-                            Err(_) => None,
-                        }
-                    })
+                    .filter_map(async move |entry| entry.ok())
                     .take(limit)
                     .collect()
                     .await

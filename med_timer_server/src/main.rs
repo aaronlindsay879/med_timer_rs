@@ -1,3 +1,5 @@
+#![feature(async_closure)]
+
 mod routes;
 use routes::{entries, meds};
 

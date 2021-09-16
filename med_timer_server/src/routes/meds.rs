@@ -1,5 +1,3 @@
-#![allow(clippy::async_yields_async)]
-
 use med_timer_shared::med::Med;
 use paperclip::actix::{
     api_v2_operation, get,

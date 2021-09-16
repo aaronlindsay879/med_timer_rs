@@ -1,5 +1,3 @@
-#![allow(clippy::async_yields_async)]
-
 use crate::{generate_response_functions, routes::DefaultQuery};
 use med_timer_shared::entry::Entry;
 use paperclip::actix::{
