@@ -20,7 +20,7 @@ async fn get_all_entries(
     log::trace!("searching database for all entries");
 
     let count = queries.count_or_default();
-    let query = sqlx::query_as::<_, Entry>("SELECT * FROM entry ORDER BY datetime(time) DESC");
+    let query = sqlx::query_as("SELECT * FROM entry ORDER BY datetime(time) DESC");
 
     Json(entry_response(query, count, &db_pool).await)
 }

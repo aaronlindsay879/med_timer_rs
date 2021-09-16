@@ -1,22 +1,47 @@
 use paperclip::actix::Apiv2Schema;
+use paste::paste;
 use serde::Deserialize;
 use sqlx::{query::QueryAs, Sqlite};
 
 pub(crate) mod entries;
 pub(crate) mod meds;
 
-#[derive(Apiv2Schema, Deserialize)]
-struct DefaultQuery {
-    count: Option<usize>,
+/// Generates a default query type, with everything being optional, and accessor methods.
+macro_rules! generate_default_query {
+    (struct $query:ident {
+        $(
+            $name:ident: Option<$type:ty> => $default:expr
+        ),*
+    }) => {
+        /// Simple query type that should work for most parameters.
+        #[derive(Apiv2Schema, Deserialize)]
+        struct $query {
+            $(
+                $name: Option<$type>
+            ),+
+        }
+
+        paste! {
+            impl $query {
+                $(
+                    #[doc = "Returns the stored value, or `default` if nothing stored"]
+                    pub fn [<$name _or>](&self, default: $type) -> $type {
+                        self.$name.unwrap_or(default)
+                    }
+
+                    #[doc = "Returns the stored value, or " $default " if nothing stored"]
+                    pub fn [<$name _or_default>](&self) -> $type {
+                        self.[<$name _or>]($default)
+                    }
+                )*
+            }
+        }
+    };
 }
 
-impl DefaultQuery {
-    pub fn count_or_default(&self) -> usize {
-        self.count_or(100)
-    }
-
-    pub fn count_or(&self, default: usize) -> usize {
-        self.count.unwrap_or(default)
+generate_default_query! {
+    struct DefaultQuery {
+        count: Option<usize> => 100
     }
 }
 

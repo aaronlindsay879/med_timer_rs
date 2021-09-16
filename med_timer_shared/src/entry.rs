@@ -37,24 +37,3 @@ impl Entry {
         }
     }
 }
-
-// impl<'r> sqlx::FromRow<'r, SqliteRow> for Entry {
-//     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
-//         let amount = row.get::<i64, &str>("amount") as u64;
-//         let time = DateTime::parse_from_rfc3339(row.get("time"))
-//             .map_err(|_| sqlx::Error::Decode("invalid time".into()))?
-//             .with_timezone(&Utc);
-//         let medication_uuid = Uuid::parse_str(row.get("medication_uuid"))
-//             .map_err(|_| sqlx::Error::Decode("invalid medication UUID".into()))?;
-//         let uuid = Uuid::parse_str(row.get("uuid"))
-//             .map_err(|_| sqlx::Error::Decode("invalid entry UUID".into()))?;
-
-//         log::trace!("constructed entry from database: `{}`", uuid);
-//         Ok(Self {
-//             amount,
-//             time,
-//             medication_uuid,
-//             uuid,
-//         })
-//     }
-// }

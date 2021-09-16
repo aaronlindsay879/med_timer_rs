@@ -19,15 +19,3 @@ impl Med {
         }
     }
 }
-
-// impl<'r> sqlx::FromRow<'r, SqliteRow> for Med {
-//     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
-//         let name = row.get("name");
-
-//         // if invalid uuid, map to closest possible sqlx error and return
-//         let uuid = row.get("uuid");
-
-//         log::trace!("constructed medication from database: `{}`", uuid);
-//         Ok(Self { name, uuid })
-//     }
-// }
