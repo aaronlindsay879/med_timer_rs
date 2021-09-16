@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use med_timer_shared::med::Med;
 use paperclip::actix::{
     api_v2_operation, get,
@@ -5,9 +6,7 @@ use paperclip::actix::{
 };
 use sqlx::SqlitePool;
 
-use crate::{generate_response_functions, routes::DefaultQuery};
-
-generate_response_functions!(med_response<Med>);
+use crate::{query, routes::DefaultQuery};
 
 /// Fetches up to 100 medications.
 #[get("/")]
@@ -18,10 +17,12 @@ async fn get_all_meds(
 ) -> Json<Vec<Med>> {
     log::trace!("searching database for all medications");
 
-    let count = queries.count_or_default();
-    let query = sqlx::query_as("SELECT * FROM medication");
-
-    Json(med_response(query, count, &db_pool).await)
+    query!(
+        pool: db_pool,
+        queries: queries,
+        out: Vec<Med>,
+        "SELECT * FROM medication"
+    )
 }
 
 /// Fetches first medications with the given UUID.
@@ -36,9 +37,12 @@ async fn get_med_by_uuid(
         medication_uuid
     );
 
-    let query = sqlx::query_as("SELECT * FROM medication WHERE uuid LIKE ?").bind(medication_uuid);
-
-    Json(med_response(query, 1, &db_pool).await.first().cloned())
+    query!(
+        pool: db_pool,
+        out: Option<Med>,
+        "SELECT * FROM medication WHERE uuid LIKE ?",
+        medication_uuid
+    )
 }
 
 /// Fetches up to 100 medications with the given name.
@@ -51,10 +55,13 @@ async fn get_med_by_name(
 ) -> Json<Vec<Med>> {
     log::trace!("searching database for medication with name: `{}`", name);
 
-    let count = queries.count_or_default();
-    let query = sqlx::query_as("SELECT * FROM medication WHERE name LIKE ?").bind(name);
-
-    Json(med_response(query, count, &db_pool).await)
+    query!(
+        pool: db_pool,
+        queries: queries,
+        out: Vec<Med>,
+        "SELECT * FROM medication WHERE name LIKE ?",
+        name
+    )
 }
 
 /// Adds all med services to config

@@ -1,4 +1,5 @@
-use crate::{generate_response_functions, routes::DefaultQuery};
+use crate::{query, routes::DefaultQuery};
+use futures::StreamExt;
 use med_timer_shared::entry::Entry;
 use paperclip::actix::{
     api_v2_operation, get,
@@ -7,8 +8,6 @@ use paperclip::actix::{
 };
 use serde::Serialize;
 use sqlx::{FromRow, SqlitePool};
-
-generate_response_functions!(entry_response<Entry>, combined_response<CombinedEntryMed>);
 
 /// Fetches the most recent 100 entries for all medications.
 #[get("/")]
@@ -19,10 +18,12 @@ async fn get_all_entries(
 ) -> Json<Vec<Entry>> {
     log::trace!("searching database for all entries");
 
-    let count = queries.count_or_default();
-    let query = sqlx::query_as("SELECT * FROM entry ORDER BY datetime(time) DESC");
-
-    Json(entry_response(query, count, &db_pool).await)
+    query!(
+        pool: db_pool,
+        queries: queries,
+        out: Vec<Entry>,
+        "SELECT * FROM entry ORDER BY datetime(time) DESC"
+    )
 }
 
 /// Fetches the most recent entry for a given entry UUID.
@@ -34,11 +35,12 @@ async fn get_entries_from_entry(
 ) -> Json<Option<Entry>> {
     log::trace!("searching database for entry with uuid: `{}`", entry_uuid);
 
-    let query =
-        sqlx::query_as("SELECT * FROM entry WHERE uuid LIKE ? ORDER BY datetime(time) DESC")
-            .bind(entry_uuid);
-
-    Json(entry_response(query, 1, &db_pool).await.first().cloned())
+    query!(
+        pool: db_pool,
+        out: Option<Entry>,
+        "SELECT * FROM entry WHERE uuid LIKE ? ORDER BY datetime(time) DESC",
+        entry_uuid
+    )
 }
 
 /// Fetches the most recent 100 entries for a given medication UUID.
@@ -54,13 +56,13 @@ async fn get_entries_from_medication_uuid(
         medication_uuid
     );
 
-    let count = queries.count_or_default();
-    let query = sqlx::query_as(
+    query!(
+        pool: db_pool,
+        queries: queries,
+        out: Vec<Entry>,
         "SELECT * FROM entry WHERE medication_uuid LIKE ? ORDER BY datetime(time) DESC",
+        medication_uuid
     )
-    .bind(medication_uuid);
-
-    Json(entry_response(query, count, &db_pool).await)
 }
 
 /// Represents combined information of entry + medication, removing need for second lookup in some situations.
@@ -86,8 +88,10 @@ async fn get_entries_from_medication_name(
         medication_name
     );
 
-    let count = queries.count_or_default();
-    let query = sqlx::query_as(
+    query!(
+        pool: db_pool,
+        queries: queries,
+        out: Vec<CombinedEntryMed>,
         "SELECT
             entry.uuid AS entry_uuid,
             amount AS entry_amount,
@@ -99,10 +103,8 @@ async fn get_entries_from_medication_name(
             ON medication.uuid = medication_uuid
             AND medication.name = ?
         ORDER BY datetime(time) DESC",
+        medication_name
     )
-    .bind(medication_name);
-
-    Json(combined_response(query, count, &db_pool).await)
 }
 
 /// Adds all entry services to config

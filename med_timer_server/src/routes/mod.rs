@@ -1,7 +1,6 @@
 use paperclip::actix::Apiv2Schema;
 use paste::paste;
 use serde::Deserialize;
-use sqlx::{query::QueryAs, Sqlite};
 
 pub(crate) mod entries;
 pub(crate) mod meds;
@@ -45,28 +44,32 @@ generate_default_query! {
     }
 }
 
-/// Simple alias to make it simpler to pass partial queries around.
-type Query<'a, T> = QueryAs<'a, Sqlite, T, sqlx::sqlite::SqliteArguments<'a>>;
-
-/// Generates functions which fetch a response from the database, returning a specific type.
-///
-/// This _should_ be done with generics instead, but issues with resolving lifetimes made that infeasible.
+/// Generates a database query using the given pool, query information (such as results limit), out type and the query itself.
 #[macro_export]
-macro_rules! generate_response_functions {
-    ($($name:ident<$type:ty>),+) => {
-        use futures::StreamExt;
-        $(
-            /// Generates a vector of results from the given query and database pool.
-            /// If results are found, simply return those results.
-            /// Otherwise serve empty json.
-            async fn $name(query: crate::routes::Query<'_, $type>, limit: usize, db_pool: &sqlx::SqlitePool) -> Vec<$type> {
-                query
-                    .fetch(db_pool)
-                    .filter_map(async move |entry| entry.ok())
-                    .take(limit)
-                    .collect()
-                    .await
-            }
-        )+
+macro_rules! query {
+    (
+        pool: $pool:expr,
+        queries: $url_queries:expr,
+        out: Vec<$out_struct:path>,
+        $query:expr $(,$args:expr)*
+    ) => {
+        Json(sqlx::query_as::<_, $out_struct>($query)
+            $(.bind($args))*
+            .fetch($pool.as_ref())
+            .filter_map(async move |entry| entry.ok())
+            .take($url_queries.count_or_default())
+            .collect()
+            .await)
+    };
+    (
+        pool: $pool:expr,
+        out: Option<$out_struct:path>,
+        $query:expr $(,$args:expr)*
+    ) => {
+        Json(sqlx::query_as::<_, $out_struct>($query)
+            $(.bind($args))*
+            .fetch_one($pool.as_ref())
+            .await
+            .ok())
     };
 }
