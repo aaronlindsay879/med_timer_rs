@@ -94,13 +94,13 @@ async fn get_entries_from_medication_name(
         out: Vec<CombinedEntryMed>,
         "SELECT
             entry.uuid AS entry_uuid,
-            amount AS entry_amount,
-            time AS entry_time,
-            medication_uuid,
-            name AS medication_name
+            entry.amount AS entry_amount,
+            entry.time AS entry_time,
+            entry.medication_uuid,
+            medication.name AS medication_name
         FROM entry
         INNER JOIN medication
-            ON medication.uuid = medication_uuid
+            ON medication.uuid = entry.medication_uuid
             AND medication.name = ?
         ORDER BY datetime(time) DESC",
         medication_name
